@@ -1,10 +1,18 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Wishlist } from './schemas/wishlist.schema';
 import { Favorite } from './schemas/favorite.schema';
 import { Review } from './schemas/review.schema';
-import { ToggleWishlistDto, ToggleFavoriteDto, CreateReviewDto } from './dto/interaction.dto';
+import {
+  ToggleWishlistDto,
+  ToggleFavoriteDto,
+  CreateReviewDto,
+} from './dto/interaction.dto';
 
 @Injectable()
 export class UserInteractionService {
@@ -25,14 +33,33 @@ export class UserInteractionService {
       await this.wishlistModel.deleteOne({ _id: existing._id });
       return { added: false };
     } else {
-      const newItem = new this.wishlistModel(dto);
+      const maxItem = await this.wishlistModel
+        .findOne({ userId: dto.userId })
+        .sort({ order: -1 });
+      const order = maxItem ? maxItem.order + 1 : 0;
+      const newItem = new this.wishlistModel({ ...dto, order });
       await newItem.save();
       return { added: true };
     }
   }
 
-  async getWishlist(userId: string) {
-    return this.wishlistModel.find({ userId }).sort({ createdAt: -1 }).exec();
+  async getWishlist(userId: string, mediaType?: string) {
+    const query: any = { userId };
+    if (mediaType) query.mediaType = mediaType;
+    return this.wishlistModel
+      .find(query)
+      .sort({ order: 1, createdAt: -1 })
+      .exec();
+  }
+
+  async updateWishlistOrder(userId: string, mediaIds: string[]) {
+    const bulkOps = mediaIds.map((mediaId, index) => ({
+      updateOne: {
+        filter: { userId, mediaId },
+        update: { $set: { order: index } },
+      },
+    }));
+    return this.wishlistModel.bulkWrite(bulkOps);
   }
 
   async toggleFavorite(dto: ToggleFavoriteDto) {
@@ -46,14 +73,23 @@ export class UserInteractionService {
       await this.favoriteModel.deleteOne({ _id: existing._id });
       return { added: false };
     } else {
-      const newItem = new this.favoriteModel(dto);
+      const maxItem = await this.favoriteModel
+        .findOne({ userId: dto.userId })
+        .sort({ order: -1 });
+      const order = maxItem ? maxItem.order + 1 : 0;
+      const newItem = new this.favoriteModel({ ...dto, order });
       await newItem.save();
       return { added: true };
     }
   }
 
-  async getFavorites(userId: string) {
-    return this.favoriteModel.find({ userId }).sort({ createdAt: -1 }).exec();
+  async getFavorites(userId: string, mediaType?: string) {
+    const query: any = { userId };
+    if (mediaType) query.mediaType = mediaType;
+    return this.favoriteModel
+      .find(query)
+      .sort({ order: 1, createdAt: -1 })
+      .exec();
   }
 
   async addReview(dto: CreateReviewDto) {
@@ -75,10 +111,17 @@ export class UserInteractionService {
   }
 
   async getReviews(mediaType: string, mediaId: string) {
-    return this.reviewModel.find({ mediaType, mediaId }).sort({ createdAt: -1 }).exec();
+    return this.reviewModel
+      .find({ mediaType, mediaId })
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
-  async getInteractionStatus(userId: string, mediaType: string, mediaId: string) {
+  async getInteractionStatus(
+    userId: string,
+    mediaType: string,
+    mediaId: string,
+  ) {
     const [wishlist, favorite, review] = await Promise.all([
       this.wishlistModel.findOne({ userId, mediaId, mediaType }),
       this.favoriteModel.findOne({ userId, mediaId, mediaType }),

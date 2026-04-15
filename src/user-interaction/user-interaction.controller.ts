@@ -1,10 +1,19 @@
 import { Controller, Post, Get, Body, Param, Query } from '@nestjs/common';
 import { UserInteractionService } from './user-interaction.service';
-import { ToggleWishlistDto, ToggleFavoriteDto, CreateReviewDto } from './dto/interaction.dto';
+import {
+  ToggleWishlistDto,
+  ToggleFavoriteDto,
+  CreateReviewDto,
+} from './dto/interaction.dto';
 
 @Controller('interactions')
 export class UserInteractionController {
   constructor(private readonly service: UserInteractionService) {}
+
+  @Post('wishlist/reorder')
+  reorderWishlist(@Body() body: { userId: string; mediaIds: string[] }) {
+    return this.service.updateWishlistOrder(body.userId, body.mediaIds);
+  }
 
   @Post('wishlist')
   toggleWishlist(@Body() dto: ToggleWishlistDto) {
@@ -12,8 +21,11 @@ export class UserInteractionController {
   }
 
   @Get('wishlist/:userId')
-  getWishlist(@Param('userId') userId: string) {
-    return this.service.getWishlist(userId);
+  getWishlist(
+    @Param('userId') userId: string,
+    @Query('mediaType') mediaType?: string,
+  ) {
+    return this.service.getWishlist(userId, mediaType);
   }
 
   @Post('favorites')
@@ -22,8 +34,11 @@ export class UserInteractionController {
   }
 
   @Get('favorites/:userId')
-  getFavorites(@Param('userId') userId: string) {
-    return this.service.getFavorites(userId);
+  getFavorites(
+    @Param('userId') userId: string,
+    @Query('mediaType') mediaType?: string,
+  ) {
+    return this.service.getFavorites(userId, mediaType);
   }
 
   @Post('reviews')
@@ -32,7 +47,10 @@ export class UserInteractionController {
   }
 
   @Get('reviews/:mediaType/:mediaId')
-  getReviews(@Param('mediaType') mediaType: string, @Param('mediaId') mediaId: string) {
+  getReviews(
+    @Param('mediaType') mediaType: string,
+    @Param('mediaId') mediaId: string,
+  ) {
     return this.service.getReviews(mediaType, mediaId);
   }
 

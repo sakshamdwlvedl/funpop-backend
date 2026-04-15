@@ -23,6 +23,9 @@ export class Favorite extends Document {
 
   @Prop()
   releaseDate: string;
+
+  @Prop({ default: 0 })
+  order: number;
 }
 
 export const FavoriteSchema = SchemaFactory.createForClass(Favorite);

@@ -23,6 +23,9 @@ export class Wishlist extends Document {
 
   @Prop()
   releaseDate: string;
+
+  @Prop({ default: 0 })
+  order: number;
 }
 
 export const WishlistSchema = SchemaFactory.createForClass(Wishlist);
