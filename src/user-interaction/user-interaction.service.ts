@@ -2,12 +2,14 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Wishlist } from './schemas/wishlist.schema';
 import { Favorite } from './schemas/favorite.schema';
 import { Review } from './schemas/review.schema';
+import { User } from './schemas/user.schema';
 import {
   ToggleWishlistDto,
   ToggleFavoriteDto,
@@ -15,12 +17,31 @@ import {
 } from './dto/interaction.dto';
 
 @Injectable()
-export class UserInteractionService {
+export class UserInteractionService implements OnModuleInit {
   constructor(
     @InjectModel(Wishlist.name) private wishlistModel: Model<Wishlist>,
     @InjectModel(Favorite.name) private favoriteModel: Model<Favorite>,
     @InjectModel(Review.name) private reviewModel: Model<Review>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
+
+  async onModuleInit() {
+    await this.seedDefaultUser();
+  }
+
+  async seedDefaultUser() {
+    const defaultUserId = 'funpop_user_123';
+    const defaultUsername = 'FunPop User';
+
+    const existing = await this.userModel.findOne({ userId: defaultUserId });
+    if (!existing) {
+      await this.userModel.create({
+        userId: defaultUserId,
+        username: defaultUsername,
+      });
+      console.log(`Default user ${defaultUserId} created.`);
+    }
+  }
 
   async toggleWishlist(dto: ToggleWishlistDto) {
     const existing = await this.wishlistModel.findOne({

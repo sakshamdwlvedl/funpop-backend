@@ -9,11 +9,14 @@ import { UserInteractionService } from '../user-interaction/user-interaction.ser
 @Injectable()
 export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
-  private readonly publicVapidKey = 'BF8zHB_4FdRgv_vZYWQeyzj0GxiJ7Na0iPvpcX0ARvYX6tys_E8Y178rs-hv351uL_e9RTFE0Hdh6mJbxhwF4jQ';
-  private readonly privateVapidKey = 'p0Y1qJ8bD84FzQ2tPueE3s2ck-QzQaGpKha_nNXULxA';
+  private readonly publicVapidKey =
+    'BF8zHB_4FdRgv_vZYWQeyzj0GxiJ7Na0iPvpcX0ARvYX6tys_E8Y178rs-hv351uL_e9RTFE0Hdh6mJbxhwF4jQ';
+  private readonly privateVapidKey =
+    'p0Y1qJ8bD84FzQ2tPueE3s2ck-QzQaGpKha_nNXULxA';
 
   constructor(
-    @InjectModel(PushSubscription.name) private subscriptionModel: Model<PushSubscription>,
+    @InjectModel(PushSubscription.name)
+    private subscriptionModel: Model<PushSubscription>,
     private userInteractionService: UserInteractionService,
   ) {}
 
@@ -30,18 +33,18 @@ export class NotificationsService implements OnModuleInit {
     return this.subscriptionModel.findOneAndUpdate(
       { endpoint: subscription.endpoint },
       { ...subscription, userId, active: true },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
   }
 
   async unsubscribe(endpoint: string) {
     return this.subscriptionModel.findOneAndUpdate(
       { endpoint },
-      { active: false }
+      { active: false },
     );
   }
 
-  @Cron(CronExpression.EVERY_5_SECONDS)
+  @Cron(CronExpression.EVERY_DAY_AT_NOON)
   async sendDailyNotifications() {
     this.logger.log('Sending daily notifications...');
     const subscriptions = await this.subscriptionModel.find({ active: true });
@@ -52,19 +55,25 @@ export class NotificationsService implements OnModuleInit {
         title: 'New on FunPop!',
         body: 'Check out the latest movies and series added today.',
         icon: '/assets/icons/icon-72x72.png',
-        data: { url: '/explore' }
+        data: { url: '/dashboard' },
       });
 
       // 2. Wishlist reminder
       if (sub.userId) {
-        const wishlist = await this.userInteractionService.getWishlist(sub.userId);
+        const wishlist = await this.userInteractionService.getWishlist(
+          sub.userId,
+        );
         if (wishlist && wishlist.length > 0) {
-          const randomItem = wishlist[Math.floor(Math.random() * wishlist.length)];
+          const randomItem =
+            wishlist[Math.floor(Math.random() * wishlist.length)];
+
           await this.sendPush(sub, {
             title: 'Ready to watch?',
-            body: `Don't forget to watch ${randomItem.mediaId} from your wishlist!`,
+            body: `Don't forget to watch ${randomItem.title} from your wishlist!`,
             icon: '/assets/icons/icon-72x72.png',
-            data: { url: `/detail/${randomItem.mediaType}/${randomItem.mediaId}` }
+            data: {
+              url: `/detail/${randomItem.mediaType}/${randomItem.mediaId}`,
+            },
           });
         }
       }
@@ -73,15 +82,31 @@ export class NotificationsService implements OnModuleInit {
 
   private async sendPush(subscription: any, payload: any) {
     try {
+      const pushPayload = {
+        notification: {
+          title: payload?.title || 'Notification',
+          body: payload?.body || 'You have a new message',
+          icon: '/assets/icons/icon-192x192.png',
+          badge: '/assets/icons/icon-72x72.png',
+          data: payload?.data || {},
+        },
+      };
+
       await webpush.sendNotification(
         subscription,
-        JSON.stringify(payload)
+        JSON.stringify(pushPayload),
+        {
+          TTL: 60,
+          urgency: 'high',
+        },
       );
-    } catch (error) {
-      this.logger.error(`Error sending push: ${error.message}`);
-      if (error.statusCode === 410) {
-        // Subscription has expired or is no longer valid
-        await this.subscriptionModel.deleteOne({ endpoint: subscription.endpoint });
+    } catch (error: any) {
+      this.logger.error(`Push Error: ${error?.message || error}`);
+
+      if (error?.statusCode === 404 || error?.statusCode === 410) {
+        await this.subscriptionModel.deleteOne({
+          endpoint: subscription.endpoint,
+        });
       }
     }
   }
