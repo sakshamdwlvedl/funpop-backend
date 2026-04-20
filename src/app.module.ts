@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserInteractionModule } from './user-interaction/user-interaction.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,7 +19,9 @@ import { UserInteractionModule } from './user-interaction/user-interaction.modul
       }),
       inject: [ConfigService],
     }),
+    ScheduleModule.forRoot(),
     UserInteractionModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

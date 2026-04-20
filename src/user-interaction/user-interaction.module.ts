@@ -16,5 +16,6 @@ import { Review, ReviewSchema } from './schemas/review.schema';
   ],
   controllers: [UserInteractionController],
   providers: [UserInteractionService],
+  exports: [UserInteractionService],
 })
 export class UserInteractionModule {}
