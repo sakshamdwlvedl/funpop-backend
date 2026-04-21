@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -17,31 +16,13 @@ import {
 } from './dto/interaction.dto';
 
 @Injectable()
-export class UserInteractionService implements OnModuleInit {
+export class UserInteractionService {
   constructor(
     @InjectModel(Wishlist.name) private wishlistModel: Model<Wishlist>,
     @InjectModel(Favorite.name) private favoriteModel: Model<Favorite>,
     @InjectModel(Review.name) private reviewModel: Model<Review>,
     @InjectModel(User.name) private userModel: Model<User>,
   ) {}
-
-  async onModuleInit() {
-    await this.seedDefaultUser();
-  }
-
-  async seedDefaultUser() {
-    const defaultUserId = 'funpop_user_123';
-    const defaultUsername = 'FunPop User';
-
-    const existing = await this.userModel.findOne({ userId: defaultUserId });
-    if (!existing) {
-      await this.userModel.create({
-        userId: defaultUserId,
-        username: defaultUsername,
-      });
-      console.log(`Default user ${defaultUserId} created.`);
-    }
-  }
 
   async toggleWishlist(dto: ToggleWishlistDto) {
     const existing = await this.wishlistModel.findOne({
@@ -73,10 +54,14 @@ export class UserInteractionService implements OnModuleInit {
       .exec();
   }
 
-  async updateWishlistOrder(userId: string, mediaIds: string[]) {
+  async updateWishlistOrder(
+    userId: string,
+    mediaIds: string[],
+    mediaType: string,
+  ) {
     const bulkOps = mediaIds.map((mediaId, index) => ({
       updateOne: {
-        filter: { userId, mediaId },
+        filter: { userId, mediaId, mediaType },
         update: { $set: { order: index } },
       },
     }));
@@ -113,6 +98,20 @@ export class UserInteractionService implements OnModuleInit {
       .exec();
   }
 
+  async updateFavoriteOrder(
+    userId: string,
+    mediaIds: string[],
+    mediaType: string,
+  ) {
+    const bulkOps = mediaIds.map((mediaId, index) => ({
+      updateOne: {
+        filter: { userId, mediaId, mediaType },
+        update: { $set: { order: index } },
+      },
+    }));
+    return this.favoriteModel.bulkWrite(bulkOps);
+  }
+
   async addReview(dto: CreateReviewDto) {
     const existing = await this.reviewModel.findOne({
       userId: dto.userId,
@@ -123,7 +122,7 @@ export class UserInteractionService implements OnModuleInit {
     if (existing) {
       existing.rating = dto.rating;
       existing.review = dto.review;
-      existing.username = dto.username;
+      if (dto.username) existing.username = dto.username;
       return existing.save();
     } else {
       const newReview = new this.reviewModel(dto);

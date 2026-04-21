@@ -2,8 +2,8 @@ import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, Max } from 'class-vali
 
 export class ToggleWishlistDto {
   @IsString()
-  @IsNotEmpty()
-  userId: string;
+  @IsOptional()
+  userId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -34,12 +34,12 @@ export class ToggleFavoriteDto extends ToggleWishlistDto {}
 
 export class CreateReviewDto {
   @IsString()
-  @IsNotEmpty()
-  userId: string;
+  @IsOptional()
+  userId?: string;
 
   @IsString()
-  @IsNotEmpty()
-  username: string;
+  @IsOptional()
+  username?: string;
 
   @IsString()
   @IsNotEmpty()
